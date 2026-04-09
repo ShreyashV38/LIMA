@@ -1,22 +1,44 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g -I./include
+AR = ar
+ARFLAGS = rcs
+
+BUILD_DIR = build
+OBJ_DIR = $(BUILD_DIR)/obj
+LIB_DIR = $(BUILD_DIR)/lib
+BIN_DIR = $(BUILD_DIR)/bin
+
+LIB_NAME = lima
+LIB_A = $(LIB_DIR)/lib$(LIB_NAME).a
+
 SRC_DS_DIR = src/data_structures
 SRC_VFS_DIR = src/vfs
 TEST_DIR = tests
-OBJ_DIR = .
-BIN_DIR = .
 
-# Sources and Tests
-DS_SRCS = $(wildcard $(SRC_DS_DIR)/*.c) $(wildcard $(SRC_VFS_DIR)/*.c)
+# Module sources
+DS_SRCS = $(wildcard $(SRC_DS_DIR)/*.c)
+VFS_SRCS = $(wildcard $(SRC_VFS_DIR)/*.c)
+LIB_SRCS = $(DS_SRCS) $(VFS_SRCS)
+
+LIB_OBJS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(LIB_SRCS))
+
+# Tests
 TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
-
-# Binary targets
 TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(BIN_DIR)/%.exe, $(TEST_SRCS))
 
-all: $(TEST_BINS)
+all: $(LIB_A) $(TEST_BINS)
 
-$(BIN_DIR)/%.exe: $(TEST_DIR)/%.c $(DS_SRCS)
-	$(CC) $(CFLAGS) $^ -o $@
+$(LIB_A): $(LIB_OBJS)
+	@mkdir -p "$(LIB_DIR)"
+	$(AR) $(ARFLAGS) $@ $^
+
+$(OBJ_DIR)/%.o: src/%.c
+	@mkdir -p "$(dir $@)"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BIN_DIR)/%.exe: $(TEST_DIR)/%.c $(LIB_A)
+	@mkdir -p "$(BIN_DIR)"
+	$(CC) $(CFLAGS) $< -L"$(LIB_DIR)" -l$(LIB_NAME) -o $@
 
 test: all
 	@for f in $(TEST_BINS); do \
@@ -25,6 +47,6 @@ test: all
 	done
 
 clean:
-	rm -f *.exe *.o
+	rm -rf "$(BUILD_DIR)"
 
 .PHONY: all test clean
