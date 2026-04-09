@@ -1,0 +1,207 @@
+================================================================================
+                    LIMA TEXT EDITOR ENGINE - CODE REVIEW
+                         Required Fixes Only
+================================================================================
+
+Developer: Shreyash Vaingankar
+Role: Text Editor Engine
+Date: April 10, 2026
+
+================================================================================
+                              SUMMARY
+================================================================================
+
+CORE IMPLEMENTATION: CORRECT
+----------------------------
+All PPT-specified features are implemented correctly:
+- Gap Buffer provides O(1) insert/delete operations
+- Keystroke handling matches PPT Slide 17 algorithm
+- Terminal raw mode works (POSIX & Windows)
+- Undo/Redo stacks implemented (as per PPT Slide 6)
+
+CRITICAL ISSUE FOUND
+--------------------
+File: src/main.c is EMPTY
+The editor cannot be invoked from CLI without integration code.
+
+================================================================================
+                    PPT REQUIREMENTS VERIFICATION
+================================================================================
+
+PPT Slide 17 Requirement          Status    Implementation Location
+--------------------------------  --------  ---------------------------
+Initialize Gap Buffer with file   Done      editor_create()
+Wait for keystroke                Done      editor_run() loop
+CHARACTER: write to gap, advance  Done      editor_process_key()
+BACKSPACE: retract gap            Done      editor_process_key()
+ARROW KEYS: shift across gap      Done      editor_process_key()
+ESCAPE: collapse and write back   Done      editor_process_key()
+
+================================================================================
+                           REQUIRED FIXES
+================================================================================
+
+------------------------------------------------------------------------------
+FIX 1: main.c Integration
+------------------------------------------------------------------------------
+
+File: src/main.c (currently empty)
+
+Add the following code to connect the editor to the VFS:
+
+/*
+ * main.c - CLI entry point for LIMA VFS
+ * Team: Anosh, Anish, Shreyash, Samuel, Zilu
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "core/vfs.h"
+#include "ui/editor.h"
+
+/* Command handlers */
+extern int cmd_ls(void);
+extern int cmd_cd(const char *path);
+extern int cmd_back(void);
+extern int cmd_front(void);
+extern int cmd_mkdir(const char *name);
+extern int cmd_touch(const char *name);
+extern int cmd_copy(const char *path);
+extern int cmd_cut(const char *path);
+extern int cmd_paste(void);
+extern int cmd_delete(const char *path);
+
+/**
+ * @brief Edit a file using the text editor
+ * @param filepath Path to the file to edit
+ * @return 0 on success, 1 on failure
+ */
+int cmd_edit(const char *filepath) {
+    /* Resolve the file path */
+    VFSNode *file_node = vfs_resolve_path(filepath);
+    if (!file_node) {
+        fprintf(stderr, "edit: cannot access '%s': No such file\n", filepath);
+        return 1;
+    }
+    
+    /* Check if it's a file (not directory) */
+    if (vfs_node_is_directory(file_node)) {
+        fprintf(stderr, "edit: '%s' is a directory\n", filepath);
+        return 1;
+    }
+    
+    /* Get current file content */
+    size_t content_len;
+    char *initial_content = vfs_file_get_content(file_node, &content_len);
+    if (!initial_content) {
+        initial_content = strdup("");
+    }
+    
+    /* Create editor with file content */
+    const char *filename = vfs_node_get_name(file_node);
+    Editor *ed = editor_create(filename, initial_content);
+    if (!ed) {
+        fprintf(stderr, "edit: failed to create editor\n");
+        free(initial_content);
+        return 1;
+    }
+    
+    /* Run the editor (blocks until Escape) */
+    editor_run(ed);
+    
+    /* Get edited content and save back */
+    size_t new_len;
+    char *new_content = editor_get_content(ed, &new_len);
+    if (new_content) {
+        vfs_file_set_content(file_node, new_content, new_len);
+        free(new_content);
+    }
+    
+    /* Cleanup */
+    editor_destroy(ed);
+    free(initial_content);
+    
+    return 0;
+}
+
+------------------------------------------------------------------------------
+FIX 2: Makefile Correction
+------------------------------------------------------------------------------
+
+File: Makefile
+
+The editor_demo target has incorrect compilation. Replace line 47 with:
+
+editor_demo: $(LIB_A)
+	$(CC) $(CFLAGS) demos/editor_demo.c src/ui/editor.c src/ui/terminal.c \
+	    src/data_structures/gap_buffer.c src/data_structures/stack.c \
+	    -o $(BIN_DIR)/editor_demo.exe
+
+------------------------------------------------------------------------------
+FIX 3: Add Edit to CLI Parser
+------------------------------------------------------------------------------
+
+File: Zilu's CLI module (likely in src/vfs/ or src/ui/)
+
+Add the edit command handler in the command parser:
+
+if (strcmp(cmd, "edit") == 0) {
+    if (argc < 2) {
+        printf("Usage: edit <filepath>\n");
+        return 1;
+    }
+    return cmd_edit(argv[1]);
+}
+
+================================================================================
+                         BUILD INSTRUCTIONS
+================================================================================
+
+Build Editor Demo:
+------------------
+    cd /path/to/LIMA
+    make editor_demo
+
+Test Standalone:
+----------------
+    ./build/bin/editor_demo.exe
+
+Test with File:
+---------------
+    ./build/bin/editor_demo.exe testfile.txt
+
+Test in VFS (after main.c fix):
+-------------------------------
+    lima> touch myfile.txt
+    lima> edit myfile.txt
+    /* Editor opens - type text, press Escape to save */
+
+================================================================================
+                           TEST CHECKLIST
+================================================================================
+
+[ ] Type characters - appear at cursor position
+[ ] Arrow keys - cursor moves correctly  
+[ ] Backspace - deletes character before cursor
+[ ] Escape - exits editor and saves content
+[ ] Status bar - shows line/column numbers
+
+================================================================================
+                            CONCLUSION
+================================================================================
+
+The Text Editor Engine implementation is COMPLETE and CORRECT per the PPT 
+specification. Only the CLI integration in src/main.c is missing.
+
+Once the cmd_edit() function is added, the edit command will work as specified 
+in PPT Slide 17.
+
+COMPONENT STATUS:
+-----------------
+Gap Buffer          - Complete
+Terminal Raw Mode   - Complete  
+Keystroke Handling  - Complete
+main.c Integration  - Needs Fix (code provided above)
+
+================================================================================

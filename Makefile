@@ -44,7 +44,9 @@ $(BIN_DIR)/%.exe: $(TEST_DIR)/%.c $(LIB_A)
 
 # Standalone editor demo (manual testing)
 editor_demo: $(LIB_A)
-	$(CC) $(CFLAGS) -DEDITOR_DEMO_MAIN src/ui/editor.c src/ui/terminal.c -L"$(LIB_DIR)" -l$(LIB_NAME) -o $(BIN_DIR)/editor_demo.exe
+	$(CC) $(CFLAGS) demos/editor_demo.c src/ui/editor.c src/ui/terminal.c \
+	    src/data_structures/gap_buffer.c src/data_structures/stack.c \
+	    -o $(BIN_DIR)/editor_demo.exe
 
 test: all
 	@for f in $(TEST_BINS); do \
