@@ -68,6 +68,25 @@ char **vfs_ls(const Vfs *vfs, size_t *out_count);
 GapBuffer *vfs_open_file(Vfs *vfs, const char *name);
 
 /**
+ * Change current directory by node pointer (must be a directory node).
+ * Useful for undo/history navigation.
+ */
+bool vfs_chdir_node(Vfs *vfs, NaryTreeNode *dir_node);
+
+/**
+ * Remove a direct child (file or dir) from the current directory by name.
+ * Returns true if removed.
+ */
+bool vfs_rm(Vfs *vfs, const char *name);
+
+/**
+ * Create under a specific directory node (must be a directory node).
+ */
+bool vfs_mkdir_at(Vfs *vfs, NaryTreeNode *dir_node, const char *name);
+bool vfs_touch_at(Vfs *vfs, NaryTreeNode *dir_node, const char *name);
+bool vfs_rm_at(Vfs *vfs, NaryTreeNode *dir_node, const char *name);
+
+/**
  * Helpers for tests / callers: extract node type + name from a node.
  */
 VfsNodeType vfs_node_type(const NaryTreeNode *node);

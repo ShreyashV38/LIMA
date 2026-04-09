@@ -198,12 +198,68 @@ static bool vfs_add_child_entry(Vfs *vfs, const char *name, VfsNodeType type) {
     return true;
 }
 
+static bool vfs_add_child_entry_at(Vfs *vfs, NaryTreeNode *dir_node, const char *name, VfsNodeType type) {
+    if (!vfs || !dir_node) return false;
+    VfsEntry *dir_e = (VfsEntry *)ntree_node_get_data(dir_node);
+    if (!dir_e || dir_e->type != VFS_NODE_DIR) return false;
+    if (!vfs_name_is_valid(name)) return false;
+    if (vfs_find_child_by_name(dir_node, name)) return false;
+
+    VfsEntry *e = vfs_entry_create(name, type);
+    if (!e) return false;
+    NaryTreeNode *n = ntree_node_create(e);
+    if (!n) {
+        vfs_entry_free(e);
+        return false;
+    }
+    ntree_append_child(dir_node, n);
+    return true;
+}
+
 bool vfs_mkdir(Vfs *vfs, const char *name) {
     return vfs_add_child_entry(vfs, name, VFS_NODE_DIR);
 }
 
 bool vfs_touch(Vfs *vfs, const char *name) {
     return vfs_add_child_entry(vfs, name, VFS_NODE_FILE);
+}
+
+bool vfs_mkdir_at(Vfs *vfs, NaryTreeNode *dir_node, const char *name) {
+    return vfs_add_child_entry_at(vfs, dir_node, name, VFS_NODE_DIR);
+}
+
+bool vfs_touch_at(Vfs *vfs, NaryTreeNode *dir_node, const char *name) {
+    return vfs_add_child_entry_at(vfs, dir_node, name, VFS_NODE_FILE);
+}
+
+static void vfs_destroy_subtree(NaryTreeNode *node) {
+    if (!node) return;
+    vfs_destroy_subtree(ntree_node_get_first_child(node));
+    vfs_destroy_subtree(ntree_node_get_next_sibling(node));
+    VfsEntry *e = (VfsEntry *)ntree_node_get_data(node);
+    if (e) vfs_entry_free(e);
+    free(node);
+}
+
+bool vfs_rm_at(Vfs *vfs, NaryTreeNode *dir_node, const char *name) {
+    if (!vfs || !dir_node || !name) return false;
+    VfsEntry *dir_e = (VfsEntry *)ntree_node_get_data(dir_node);
+    if (!dir_e || dir_e->type != VFS_NODE_DIR) return false;
+
+    NaryTreeNode *child = vfs_find_child_by_name(dir_node, name);
+    if (!child) return false;
+
+    NaryTreeNode *detached = ntree_remove_child(dir_node, child);
+    if (!detached) return false;
+
+    // subtree root to destroy
+    vfs_destroy_subtree(detached);
+    return true;
+}
+
+bool vfs_rm(Vfs *vfs, const char *name) {
+    if (!vfs || !vfs->cwd) return false;
+    return vfs_rm_at(vfs, vfs->cwd, name);
 }
 
 static NaryTreeNode *vfs_resolve_from(NaryTreeNode *start, const char *path) {
@@ -263,6 +319,14 @@ bool vfs_cd(Vfs *vfs, const char *path) {
     NaryTreeNode *resolved = vfs_resolve_from(start, path);
     if (!resolved) return false;
     vfs->cwd = resolved;
+    return true;
+}
+
+bool vfs_chdir_node(Vfs *vfs, NaryTreeNode *dir_node) {
+    if (!vfs || !dir_node) return false;
+    VfsEntry *e = (VfsEntry *)ntree_node_get_data(dir_node);
+    if (!e || e->type != VFS_NODE_DIR) return false;
+    vfs->cwd = dir_node;
     return true;
 }
 
