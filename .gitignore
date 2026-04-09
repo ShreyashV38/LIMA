@@ -5,6 +5,8 @@
 *.dll
 *.so
 *.dylib
+*.a
+build/
 
 # Editor / Configuration
 .vscode/
