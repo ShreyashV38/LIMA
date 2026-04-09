@@ -14,6 +14,9 @@
  * Special keys use values >= 1000 to avoid collisions.
  */
 enum EditorKey {
+    KEY_CTRL_Y      = 25,        /* Ctrl+Y = Redo */
+    KEY_CTRL_Z      = 26,        /* Ctrl+Z = Undo */
+    KEY_ESCAPE      = 27,
     KEY_BACKSPACE   = 127,
     KEY_ARROW_LEFT  = 1000,
     KEY_ARROW_RIGHT,
@@ -23,8 +26,7 @@ enum EditorKey {
     KEY_HOME,
     KEY_END,
     KEY_PAGE_UP,
-    KEY_PAGE_DOWN,
-    KEY_ESCAPE      = 27
+    KEY_PAGE_DOWN
 };
 
 /**
