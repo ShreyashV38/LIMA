@@ -1,12 +1,13 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -g -I./include
-SRC_DIR = src/data_structures
+SRC_DS_DIR = src/data_structures
+SRC_VFS_DIR = src/vfs
 TEST_DIR = tests
 OBJ_DIR = .
 BIN_DIR = .
 
 # Sources and Tests
-DS_SRCS = $(wildcard $(SRC_DIR)/*.c)
+DS_SRCS = $(wildcard $(SRC_DS_DIR)/*.c) $(wildcard $(SRC_VFS_DIR)/*.c)
 TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
 
 # Binary targets
