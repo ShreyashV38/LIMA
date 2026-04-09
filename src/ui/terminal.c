@@ -103,6 +103,10 @@ int term_read_key(void) {
         /* If it produced a printable ASCII character, return it */
         if (ch >= 32 && ch <= 126) return ch;
 
+        /* Support Ctrl+Y and Ctrl+Z */
+        if (ch == 25) return KEY_CTRL_Y;
+        if (ch == 26) return KEY_CTRL_Z;
+
         /* Skip everything else (Shift, Ctrl, Alt pressed alone, etc.) */
     }
 }

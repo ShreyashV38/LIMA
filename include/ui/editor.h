@@ -49,6 +49,17 @@ void editor_run(Editor *ed);
 char *editor_get_content(const Editor *ed, size_t *out_len);
 
 /**
+ * @brief Process a single keystroke.
+ *
+ * Exposes the internal keystroke handling functionality to external or
+ * test modules to allow programmatic interaction.
+ *
+ * @param ed Pointer to the editor instance.
+ * @param key The key code to process (ASCII or EditorKey enum).
+ */
+void editor_process_key(Editor *ed, int key);
+
+/**
  * @brief Destroy the editor and free all associated memory.
  * @param ed Pointer to the editor instance.
  */

@@ -553,7 +553,7 @@ static void editor_render(Editor *ed) {
  *  Keystroke Processing
  * ────────────────────────────────────────────────────────────────────── */
 
-static void editor_process_key(Editor *ed, int key) {
+void editor_process_key(Editor *ed, int key) {
 
     /* Clear transient status message on any key */
     editor_set_status_msg(ed, NULL);
