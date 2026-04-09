@@ -1,0 +1,15 @@
+# Compilation Output
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Editor / Configuration
+.vscode/
+.env
+
+# Crash logs
+*.dmp
+*.core
