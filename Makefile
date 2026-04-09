@@ -12,15 +12,17 @@ LIB_NAME = lima
 LIB_A = $(LIB_DIR)/lib$(LIB_NAME).a
 
 SRC_DS_DIR = src/data_structures
+SRC_UI_DIR = src/ui
 SRC_VFS_DIR = src/vfs
 SRC_CORE_DIR = src/core
 TEST_DIR = tests
 
 # Module sources
 DS_SRCS = $(wildcard $(SRC_DS_DIR)/*.c)
+UI_SRCS = $(wildcard $(SRC_UI_DIR)/*.c)
 VFS_SRCS = $(wildcard $(SRC_VFS_DIR)/*.c)
 CORE_SRCS = $(wildcard $(SRC_CORE_DIR)/*.c)
-LIB_SRCS = $(DS_SRCS) $(VFS_SRCS) $(CORE_SRCS)
+LIB_SRCS = $(DS_SRCS) $(UI_SRCS) $(VFS_SRCS) $(CORE_SRCS)
 
 LIB_OBJS = $(patsubst src/%.c,$(OBJ_DIR)/%.o,$(LIB_SRCS))
 
@@ -42,6 +44,12 @@ $(BIN_DIR)/%.exe: $(TEST_DIR)/%.c $(LIB_A)
 	@if not exist "$(subst /,\,$(BIN_DIR))" mkdir "$(subst /,\,$(BIN_DIR))"
 	$(CC) $(CFLAGS) $< -L"$(LIB_DIR)" -l$(LIB_NAME) -o $@
 
+# Standalone editor demo (manual testing)
+editor_demo: $(LIB_A)
+	$(CC) $(CFLAGS) demos/editor_demo.c src/ui/editor.c src/ui/terminal.c \
+	    src/data_structures/gap_buffer.c src/data_structures/stack.c \
+	    -o $(BIN_DIR)/editor_demo.exe
+
 test: all
 	@for f in $(TEST_BINS); do \
 		echo Running $$f...; \
@@ -51,4 +59,4 @@ test: all
 clean:
 	rm -rf "$(BUILD_DIR)"
 
-.PHONY: all test clean
+.PHONY: all test clean editor_demo
