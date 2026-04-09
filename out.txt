@@ -1,0 +1,9 @@
+asdasasdWelcome to the LIMA Text Editor!
+
+This editor uses a Gap Buffer for O(1) inserts.
+Try typing, deleting, and using arrow keys.
+
+Ctrl+Z = Undo
+Ctrl+Y = Redo
+Escape = Save & Quit
+heloo   

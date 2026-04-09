@@ -39,10 +39,11 @@ void term_enable_raw_mode(void) {
     GetConsoleMode(hStdin,  &orig_in_mode);
     GetConsoleMode(hStdout, &orig_out_mode);
 
-    /* Input: disable line input, echo, and processed input (Ctrl-C etc.)   */
+    /* Input: disable line input, echo, and processed input (Ctrl-C etc.)
+       Do NOT enable ENABLE_VIRTUAL_TERMINAL_INPUT — it would cause arrow
+       keys to arrive as VT escape sequences instead of VK key codes.      */
     DWORD in_mode = orig_in_mode;
     in_mode &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT);
-    in_mode |= ENABLE_VIRTUAL_TERMINAL_INPUT;
     SetConsoleMode(hStdin, in_mode);
 
     /* Output: enable virtual terminal processing for ANSI escape codes     */
