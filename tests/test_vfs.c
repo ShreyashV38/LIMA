@@ -17,7 +17,7 @@ void test_vfs_basic_mkdir_cd_pwd_ls_open() {
 
     char *pwd = vfs_pwd(vfs);
     assert(pwd != NULL);
-    assert(strcmp(pwd, "/") == 0);
+    assert(strcmp(pwd, "/ (root)") == 0);
     free(pwd);
 
     assert(vfs_mkdir(vfs, "home") == true);

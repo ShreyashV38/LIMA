@@ -39,10 +39,13 @@ char *vfs_pwd(const Vfs *vfs) {
     }
 
     size_t len = 1; /* leading "/" */
-    if (seg_count > 0) {
-        len += seg_chars;
-        if (seg_count > 1) len += (seg_count - 1); /* internal slashes */
+    if (seg_count == 0) {
+        free(stack);
+        return vfs__strdup("/ (root)");
     }
+    
+    len += seg_chars;
+    if (seg_count > 1) len += (seg_count - 1); /* internal slashes */
 
     char *out = (char *)malloc(len + 1);
     if (!out) {
