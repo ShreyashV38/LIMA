@@ -9,6 +9,10 @@
 #include "../include/core/persistence.h"
 #include "../include/data_structures/gap_buffer.h"
 
+// command to run just this one file
+// make all
+// ./build/bin/benchmark.exe
+
 // Helper to calculate time in milliseconds
 static double get_time_ms(clock_t start, clock_t end) {
     return ((double)(end - start) / CLOCKS_PER_SEC) * 1000.0;
