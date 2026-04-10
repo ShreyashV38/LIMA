@@ -88,3 +88,23 @@ int cmd_edit(const char *filepath) {
     
     return 0;
 }
+
+/**
+ * @brief Delete a file or directory
+ * @param path Name of the file/dir in the current directory to delete
+ * @return 0 on success, 1 on failure
+ */
+int cmd_delete(const char *path) {
+    if (!g_vfs || !path) return 1;
+
+    /* * vfs_rm() handles the O(1) detachment from the parent directory's N-ary tree node,
+     * and then internally calls our O(N) vfs__destroy_subtree() to wipe it from memory.
+     */
+    if (vfs_rm(g_vfs, path)) {
+        printf("Deleted '%s' successfully.\n", path);
+        return 0;
+    } else {
+        fprintf(stderr, "delete: cannot remove '%s': No such file or directory\n", path);
+        return 1;
+    }
+}

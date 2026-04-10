@@ -86,11 +86,21 @@ bool vfs__add_child_entry_at(Vfs *vfs, NaryTreeNode *dir_node, const char *name,
 
 void vfs__destroy_subtree(NaryTreeNode *node) {
     if (!node) return;
-    vfs__destroy_subtree(ntree_node_get_first_child(node));
-    vfs__destroy_subtree(ntree_node_get_next_sibling(node));
 
-    VfsEntry *e = (VfsEntry *)ntree_node_get_data(node);
-    if (e) vfs__entry_free(e);
+    // 1. Recursively delete all children first (Bottom-Up / Post-Order)
+    NaryTreeNode *child = ntree_node_get_first_child(node);
+    while (child != NULL) {
+        NaryTreeNode *next_sibling = ntree_node_get_next_sibling(child);
+        vfs__destroy_subtree(child); 
+        child = next_sibling;
+    }
+
+    // 2. Free the internal payload data
+    VfsEntry *entry = (VfsEntry *)ntree_node_get_data(node);
+    if (entry) {
+        vfs__entry_free(entry);
+    }
+
+    // 3. Free the N-ary Tree node shell itself
     free(node);
 }
-

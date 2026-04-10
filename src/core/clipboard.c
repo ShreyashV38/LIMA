@@ -1,5 +1,5 @@
 #include "../../include/core/clipboard.h"
-#include "vfs_internal.h" // Needed for VfsEntry, vfs__find_child_by_name, etc.
+#include "../vfs/vfs_internal.h"
 #include <stdlib.h>
 #include <string.h>
 
