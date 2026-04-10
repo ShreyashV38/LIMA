@@ -33,20 +33,20 @@ TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(BIN_DIR)/%.exe, $(TEST_SRCS))
 all: $(LIB_A) $(TEST_BINS) lima
 
 $(LIB_A): $(LIB_OBJS)
-	@if not exist "$(subst /,\,$(LIB_DIR))" mkdir "$(subst /,\,$(LIB_DIR))"
+	@mkdir -p "$(LIB_DIR)"
 	$(AR) $(ARFLAGS) $@ $^
 
 $(OBJ_DIR)/%.o: src/%.c
-	@if not exist "$(subst /,\,$(dir $@))" mkdir "$(subst /,\,$(dir $@))"
+	@mkdir -p "$(dir $@)"
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BIN_DIR)/%.exe: $(TEST_DIR)/%.c $(LIB_A)
-	@if not exist "$(subst /,\,$(BIN_DIR))" mkdir "$(subst /,\,$(BIN_DIR))"
+	@mkdir -p "$(BIN_DIR)"
 	$(CC) $(CFLAGS) $< -L"$(LIB_DIR)" -l$(LIB_NAME) -o $@
 
 # Main CLI application
 lima: $(LIB_A)
-	@if not exist "$(subst /,\,$(BIN_DIR))" mkdir "$(subst /,\,$(BIN_DIR))"
+	@mkdir -p "$(BIN_DIR)"
 	$(CC) $(CFLAGS) src/main.c -L"$(LIB_DIR)" -l$(LIB_NAME) -o $(BIN_DIR)/lima.exe
 
 # Standalone editor demo (manual testing)

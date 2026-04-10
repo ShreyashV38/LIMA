@@ -13,6 +13,8 @@
  *   - Arrow keys to navigate
  *   - Backspace / Delete to remove characters
  *   - Ctrl+Z = Undo,  Ctrl+Y = Redo
+ *   - Ctrl+B = Toggle Selection mark Mode
+ *   - Alt+C = Copy, Alt+X = Cut, Alt+V = Paste
  *   - Escape = Save & Quit
  */
 int main(int argc, char *argv[]) {
@@ -24,6 +26,10 @@ int main(int argc, char *argv[]) {
         "\n"
         "Ctrl+Z = Undo\n"
         "Ctrl+Y = Redo\n"
+        "Ctrl+B = Toggle Selection Anchor\n"
+        "Alt+C  = Copy\n"
+        "Alt+X  = Cut\n"
+        "Alt+V  = Paste\n"
         "Escape = Save & Quit\n";
 
     char *initial_text = NULL;
