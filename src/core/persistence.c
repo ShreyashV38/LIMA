@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+// gcc -Wall -g -I./include tests/test_persistence.c src/core/persistence.c src/core/clipboard.c src/vfs/vfs_ops.c src/vfs/vfs_nav.c src/vfs/vfs_pwd.c src/vfs/vfs_internal.c src/vfs/vfs_session.c src/data_structures/nary_tree.c src/data_structures/hash_map.c src/data_structures/gap_buffer.c src/data_structures/stack.c -o test_persistence.exe
+
+// .\test_persistence.exe
 
 const char *persistence_error_string(PersistenceError err) {
     switch(err) {
