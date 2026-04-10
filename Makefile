@@ -53,6 +53,7 @@ lima: $(LIB_A)
 editor_demo: $(LIB_A)
 	$(CC) $(CFLAGS) demos/editor_demo.c src/ui/editor.c src/ui/terminal.c \
 	    src/data_structures/gap_buffer.c src/data_structures/stack.c \
+	    src/data_structures/select_buffer.c \
 	    -o $(BIN_DIR)/editor_demo.exe
 
 test: all

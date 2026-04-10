@@ -80,13 +80,15 @@ int term_read_key(void) {
 
         WORD  vk = rec.Event.KeyEvent.wVirtualKeyCode;
         char  ch = rec.Event.KeyEvent.uChar.AsciiChar;
+        DWORD mods = rec.Event.KeyEvent.dwControlKeyState;
+        int   shift_held = (mods & SHIFT_PRESSED) != 0;
 
         /* Map virtual key codes to our EditorKey values */
         switch (vk) {
-            case VK_UP:     return KEY_ARROW_UP;
-            case VK_DOWN:   return KEY_ARROW_DOWN;
-            case VK_LEFT:   return KEY_ARROW_LEFT;
-            case VK_RIGHT:  return KEY_ARROW_RIGHT;
+            case VK_UP:     return shift_held ? KEY_SHIFT_UP    : KEY_ARROW_UP;
+            case VK_DOWN:   return shift_held ? KEY_SHIFT_DOWN  : KEY_ARROW_DOWN;
+            case VK_LEFT:   return shift_held ? KEY_SHIFT_LEFT  : KEY_ARROW_LEFT;
+            case VK_RIGHT:  return shift_held ? KEY_SHIFT_RIGHT : KEY_ARROW_RIGHT;
             case VK_HOME:   return KEY_HOME;
             case VK_END:    return KEY_END;
             case VK_DELETE: return KEY_DELETE;
@@ -103,7 +105,10 @@ int term_read_key(void) {
         /* If it produced a printable ASCII character, return it */
         if (ch >= 32 && ch <= 126) return ch;
 
-        /* Support Ctrl+Y and Ctrl+Z */
+        /* Support Ctrl key combinations */
+        if (ch ==  3) return KEY_CTRL_C;
+        if (ch == 22) return KEY_CTRL_V;
+        if (ch == 24) return KEY_CTRL_X;
         if (ch == 25) return KEY_CTRL_Y;
         if (ch == 26) return KEY_CTRL_Z;
 
@@ -178,13 +183,31 @@ int term_read_key(void) {
 
     /* Escape sequence? */
     if (c == '\x1b') {
-        char seq[3];
+        char seq[5];
         if (read(STDIN_FILENO, &seq[0], 1) != 1) return KEY_ESCAPE;
         if (read(STDIN_FILENO, &seq[1], 1) != 1) return KEY_ESCAPE;
 
         if (seq[0] == '[') {
             if (seq[1] >= '0' && seq[1] <= '9') {
                 if (read(STDIN_FILENO, &seq[2], 1) != 1) return KEY_ESCAPE;
+
+                /* Shift+Arrow: \x1b[1;2A/B/C/D */
+                if (seq[1] == '1' && seq[2] == ';') {
+                    char mod, arrow;
+                    if (read(STDIN_FILENO, &mod, 1) != 1) return KEY_ESCAPE;
+                    if (read(STDIN_FILENO, &arrow, 1) != 1) return KEY_ESCAPE;
+                    if (mod == '2') {  /* modifier 2 = Shift */
+                        switch (arrow) {
+                            case 'A': return KEY_SHIFT_UP;
+                            case 'B': return KEY_SHIFT_DOWN;
+                            case 'C': return KEY_SHIFT_RIGHT;
+                            case 'D': return KEY_SHIFT_LEFT;
+                        }
+                    }
+                    /* Other modifiers (Ctrl=5, Alt=3) — fall through */
+                    return KEY_ESCAPE;
+                }
+
                 if (seq[2] == '~') {
                     switch (seq[1]) {
                         case '1': return KEY_HOME;
@@ -217,6 +240,9 @@ int term_read_key(void) {
 
     /* Map Ctrl-H and 127 to backspace */
     if (c == 127 || c == 8) return KEY_BACKSPACE;
+
+    /* Ctrl+C, Ctrl+V, Ctrl+X are returned as their ASCII values
+       (3, 22, 24) and match the EditorKey enum directly */
 
     return c;
 }

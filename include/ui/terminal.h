@@ -14,8 +14,11 @@
  * Special keys use values >= 1000 to avoid collisions.
  */
 enum EditorKey {
-    KEY_CTRL_Y      = 25,        /* Ctrl+Y = Redo */
-    KEY_CTRL_Z      = 26,        /* Ctrl+Z = Undo */
+    KEY_CTRL_C      = 3,         /* Ctrl+C = Copy  */
+    KEY_CTRL_V      = 22,        /* Ctrl+V = Paste */
+    KEY_CTRL_X      = 24,        /* Ctrl+X = Cut   */
+    KEY_CTRL_Y      = 25,        /* Ctrl+Y = Redo  */
+    KEY_CTRL_Z      = 26,        /* Ctrl+Z = Undo  */
     KEY_ESCAPE      = 27,
     KEY_BACKSPACE   = 127,
     KEY_ARROW_LEFT  = 1000,
@@ -26,7 +29,11 @@ enum EditorKey {
     KEY_HOME,
     KEY_END,
     KEY_PAGE_UP,
-    KEY_PAGE_DOWN
+    KEY_PAGE_DOWN,
+    KEY_SHIFT_LEFT  = 1020,      /* Shift+Arrow = selection */
+    KEY_SHIFT_RIGHT,
+    KEY_SHIFT_UP,
+    KEY_SHIFT_DOWN
 };
 
 /**
