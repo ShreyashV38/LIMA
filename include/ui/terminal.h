@@ -14,11 +14,12 @@
  * Special keys use values >= 1000 to avoid collisions.
  */
 enum EditorKey {
-    KEY_CTRL_C      = 3,         /* Ctrl+C = Copy  */
-    KEY_CTRL_V      = 22,        /* Ctrl+V = Paste */
-    KEY_CTRL_X      = 24,        /* Ctrl+X = Cut   */
+    KEY_CTRL_B      = 2,         /* Ctrl+B = Toggle Selection */
     KEY_CTRL_Y      = 25,        /* Ctrl+Y = Redo  */
     KEY_CTRL_Z      = 26,        /* Ctrl+Z = Undo  */
+    KEY_ALT_C       = 100,       /* Alt+C  = Copy  */
+    KEY_ALT_X       = 101,       /* Alt+X  = Cut   */
+    KEY_ALT_V       = 102,       /* Alt+V  = Paste */
     KEY_ESCAPE      = 27,
     KEY_BACKSPACE   = 127,
     KEY_ARROW_LEFT  = 1000,

@@ -102,13 +102,18 @@ int term_read_key(void) {
                 break;
         }
 
+        /* Check for Alt keys */
+        if (mods & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) {
+            if (ch == 'c' || ch == 'C') return KEY_ALT_C;
+            if (ch == 'x' || ch == 'X') return KEY_ALT_X;
+            if (ch == 'v' || ch == 'V') return KEY_ALT_V;
+        }
+
         /* If it produced a printable ASCII character, return it */
         if (ch >= 32 && ch <= 126) return ch;
 
         /* Support Ctrl key combinations */
-        if (ch ==  3) return KEY_CTRL_C;
-        if (ch == 22) return KEY_CTRL_V;
-        if (ch == 24) return KEY_CTRL_X;
+        if (ch ==  2) return KEY_CTRL_B;
         if (ch == 25) return KEY_CTRL_Y;
         if (ch == 26) return KEY_CTRL_Z;
 
@@ -185,6 +190,12 @@ int term_read_key(void) {
     if (c == '\x1b') {
         char seq[5];
         if (read(STDIN_FILENO, &seq[0], 1) != 1) return KEY_ESCAPE;
+
+        /* Alt + C/X/V usually send ESC followed by the char */
+        if (seq[0] == 'c' || seq[0] == 'C') return KEY_ALT_C;
+        if (seq[0] == 'x' || seq[0] == 'X') return KEY_ALT_X;
+        if (seq[0] == 'v' || seq[0] == 'V') return KEY_ALT_V;
+
         if (read(STDIN_FILENO, &seq[1], 1) != 1) return KEY_ESCAPE;
 
         if (seq[0] == '[') {
@@ -241,8 +252,8 @@ int term_read_key(void) {
     /* Map Ctrl-H and 127 to backspace */
     if (c == 127 || c == 8) return KEY_BACKSPACE;
 
-    /* Ctrl+C, Ctrl+V, Ctrl+X are returned as their ASCII values
-       (3, 22, 24) and match the EditorKey enum directly */
+    /* Ctrl+B is returned as ASCII 2 */
+    if (c == 2) return KEY_CTRL_B;
 
     return c;
 }
