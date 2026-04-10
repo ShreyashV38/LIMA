@@ -312,6 +312,60 @@ static void editor_set_status_msg(Editor *ed, const char *msg) {
     }
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+ *  Selection helpers
+ * ────────────────────────────────────────────────────────────────────── */
+
+static bool editor_has_selection(const Editor *ed) {
+    return ed->sel_anchor_row >= 0;
+}
+
+static void editor_clear_selection(Editor *ed) {
+    ed->sel_anchor_row = -1;
+    ed->sel_anchor_col = 0;
+}
+
+/**
+ * @brief Start a selection if one is not already active.
+ *        Sets the anchor to the current cursor position.
+ */
+static void editor_start_selection(Editor *ed) {
+    if (!editor_has_selection(ed)) {
+        ed->sel_anchor_row = ed->cursor_row;
+        ed->sel_anchor_col = ed->cursor_col;
+    }
+}
+
+/**
+ * @brief Get the ordered start and end offsets of the current selection.
+ * @return true if a non-empty selection exists, false otherwise.
+ */
+static bool editor_get_selection_range(Editor *ed, size_t *out_start, size_t *out_end) {
+    if (!editor_has_selection(ed)) return false;
+
+    size_t text_len;
+    char *text = gb_get_text(ed->buffer, &text_len);
+    if (!text) return false;
+
+    int dummy;
+    size_t anchor_off = row_col_to_offset(text, text_len,
+                                           ed->sel_anchor_row, ed->sel_anchor_col, &dummy);
+    size_t cursor_off = row_col_to_offset(text, text_len,
+                                           ed->cursor_row, ed->cursor_col, &dummy);
+    free(text);
+
+    if (anchor_off == cursor_off) return false;  /* zero-length selection */
+
+    if (anchor_off < cursor_off) {
+        *out_start = anchor_off;
+        *out_end   = cursor_off;
+    } else {
+        *out_start = cursor_off;
+        *out_end   = anchor_off;
+    }
+    return true;
+}
+
 /**
  * @brief Undo the last action.
  */
@@ -455,6 +509,10 @@ static void editor_render(Editor *ed) {
 
     /* ── Draw text rows ─────────────────────────────────────────────── */
 
+    /* Compute selection range (offsets into `text`) for highlighting */
+    size_t sel_start = 0, sel_end = 0;
+    bool has_sel = editor_get_selection_range((Editor *)ed, &sel_start, &sel_end);
+
     /* Walk the text to find line starts */
     int total_lines = count_lines(text, text_len);
     ed->total_lines = total_lines;
@@ -482,12 +540,35 @@ static void editor_render(Editor *ed) {
             }
             int line_len = (int)(line_end - line_start);
 
-            /* Apply horizontal scroll */
+            /* Apply horizontal scroll and render with selection highlights */
             int render_start = ed->col_offset;
             if (render_start < line_len) {
                 int render_len = line_len - render_start;
                 if (render_len > ed->screen_cols) render_len = ed->screen_cols;
-                ab_append(&ab, text + line_start + render_start, (size_t)render_len);
+
+                if (!has_sel) {
+                    /* No selection — fast path, append whole chunk */
+                    ab_append(&ab, text + line_start + render_start, (size_t)render_len);
+                } else {
+                    /* Render character by character with selection highlighting */
+                    bool in_sel = false;
+                    for (int i = 0; i < render_len; i++) {
+                        size_t char_off = line_start + (size_t)render_start + (size_t)i;
+                        bool selected = (char_off >= sel_start && char_off < sel_end);
+
+                        if (selected && !in_sel) {
+                            ab_append(&ab, "\x1b[7m", 4);  /* reverse video ON */
+                            in_sel = true;
+                        } else if (!selected && in_sel) {
+                            ab_append(&ab, "\x1b[0m", 4);  /* reverse video OFF */
+                            in_sel = false;
+                        }
+                        ab_append(&ab, &text[char_off], 1);
+                    }
+                    if (in_sel) {
+                        ab_append(&ab, "\x1b[0m", 4);  /* ensure reset at end of line */
+                    }
+                }
             }
 
             /* Advance pos past this line (and the newline) */
@@ -530,7 +611,7 @@ static void editor_render(Editor *ed) {
     /* ── Draw message bar ───────────────────────────────────────────── */
     ab_append(&ab, "\x1b[K", 3);  /* Clear line */
     const char *help_default =
-        " ESC = Save & Quit | Ctrl+Z = Undo | Ctrl+Y = Redo";
+        " ESC=Quit | Ctrl+Z/Y=Undo/Redo | Shift+Arrow=Select | Ctrl+C/X/V=Copy/Cut/Paste";
     const char *msg = (ed->status_msg && ed->status_msg[0])
                           ? ed->status_msg : help_default;
     int msg_len = (int)strlen(msg);
@@ -580,8 +661,111 @@ void editor_process_key(Editor *ed, int key) {
         editor_redo(ed);
         break;
 
+    /* ── CLIPBOARD: Copy / Cut / Paste ──────────────────────────────── */
+    case KEY_CTRL_C: {
+        size_t sel_start, sel_end;
+        if (!editor_get_selection_range(ed, &sel_start, &sel_end)) {
+            editor_set_status_msg(ed, "Nothing selected");
+            break;
+        }
+        size_t tlen;
+        char *t = gb_get_text(ed->buffer, &tlen);
+        if (t) {
+            sb_store(ed->clipboard, t + sel_start, sel_end - sel_start);
+            free(t);
+            editor_set_status_msg(ed, "Copied");
+        }
+        break;
+    }
+
+    case KEY_CTRL_X: {
+        size_t sel_start, sel_end;
+        if (!editor_get_selection_range(ed, &sel_start, &sel_end)) {
+            editor_set_status_msg(ed, "Nothing selected");
+            break;
+        }
+        size_t tlen;
+        char *t = gb_get_text(ed->buffer, &tlen);
+        if (!t) break;
+
+        size_t cut_len = sel_end - sel_start;
+        sb_store(ed->clipboard, t + sel_start, cut_len);
+
+        /* Record undo for the deletion */
+        editor_record_delete(ed, sel_start, t + sel_start, cut_len);
+        free(t);
+
+        /* Delete the selected region from the gap buffer */
+        gb_move_cursor(ed->buffer, sel_end);
+        gb_delete_before(ed->buffer, cut_len);
+        ed->dirty = true;
+
+        /* Place cursor at the start of the selection */
+        t = gb_get_text(ed->buffer, &tlen);
+        if (t) {
+            offset_to_row_col(t, sel_start, &ed->cursor_row, &ed->cursor_col);
+            ed->total_lines = count_lines(t, tlen);
+            free(t);
+        }
+        editor_clear_selection(ed);
+        editor_sync_cursor(ed);
+        editor_set_status_msg(ed, "Cut");
+        break;
+    }
+
+    case KEY_CTRL_V: {
+        size_t paste_len;
+        const char *paste_text = sb_get_text(ed->clipboard, &paste_len);
+        if (!paste_text) {
+            editor_set_status_msg(ed, "Clipboard empty");
+            break;
+        }
+
+        /* If there is a selection, delete it first */
+        size_t sel_start, sel_end;
+        if (editor_get_selection_range(ed, &sel_start, &sel_end)) {
+            size_t tlen;
+            char *t = gb_get_text(ed->buffer, &tlen);
+            if (t) {
+                size_t cut_len = sel_end - sel_start;
+                editor_record_delete(ed, sel_start, t + sel_start, cut_len);
+                free(t);
+                gb_move_cursor(ed->buffer, sel_end);
+                gb_delete_before(ed->buffer, cut_len);
+                /* cursor at sel_start */
+                t = gb_get_text(ed->buffer, &tlen);
+                if (t) {
+                    offset_to_row_col(t, sel_start, &ed->cursor_row, &ed->cursor_col);
+                    free(t);
+                }
+            }
+            editor_clear_selection(ed);
+        }
+
+        editor_sync_cursor(ed);
+        size_t offset = editor_get_cursor_offset(ed);
+
+        gb_insert(ed->buffer, paste_text, paste_len);
+        editor_record_insert(ed, offset, paste_text, paste_len);
+        ed->dirty = true;
+
+        /* Place cursor at end of pasted text */
+        size_t tlen;
+        char *t = gb_get_text(ed->buffer, &tlen);
+        if (t) {
+            offset_to_row_col(t, offset + paste_len,
+                              &ed->cursor_row, &ed->cursor_col);
+            ed->total_lines = count_lines(t, tlen);
+            free(t);
+        }
+        editor_sync_cursor(ed);
+        editor_set_status_msg(ed, "Pasted");
+        break;
+    }
+
     /* ── NAVIGATION ─────────────────────────────────────────────────── */
     case KEY_ARROW_LEFT:
+        editor_clear_selection(ed);
         if (ed->cursor_col > 0) {
             ed->cursor_col--;
         } else if (ed->cursor_row > 0) {
@@ -598,6 +782,7 @@ void editor_process_key(Editor *ed, int key) {
         break;
 
     case KEY_ARROW_RIGHT: {
+        editor_clear_selection(ed);
         size_t tlen;
         char *t = gb_get_text(ed->buffer, &tlen);
         if (t) {
@@ -616,6 +801,7 @@ void editor_process_key(Editor *ed, int key) {
     }
 
     case KEY_ARROW_UP:
+        editor_clear_selection(ed);
         if (ed->cursor_row > 0) {
             ed->cursor_row--;
         }
@@ -623,6 +809,7 @@ void editor_process_key(Editor *ed, int key) {
         break;
 
     case KEY_ARROW_DOWN:
+        editor_clear_selection(ed);
         if (ed->cursor_row < ed->total_lines - 1) {
             ed->cursor_row++;
         }
@@ -630,11 +817,13 @@ void editor_process_key(Editor *ed, int key) {
         break;
 
     case KEY_HOME:
+        editor_clear_selection(ed);
         ed->cursor_col = 0;
         editor_sync_cursor(ed);
         break;
 
     case KEY_END: {
+        editor_clear_selection(ed);
         size_t tlen;
         char *t = gb_get_text(ed->buffer, &tlen);
         if (t) {
@@ -646,6 +835,7 @@ void editor_process_key(Editor *ed, int key) {
     }
 
     case KEY_PAGE_UP: {
+        editor_clear_selection(ed);
         int jump = ed->screen_rows;
         ed->cursor_row -= jump;
         if (ed->cursor_row < 0) ed->cursor_row = 0;
@@ -654,6 +844,7 @@ void editor_process_key(Editor *ed, int key) {
     }
 
     case KEY_PAGE_DOWN: {
+        editor_clear_selection(ed);
         int jump = ed->screen_rows;
         ed->cursor_row += jump;
         if (ed->cursor_row >= ed->total_lines) {
@@ -664,8 +855,60 @@ void editor_process_key(Editor *ed, int key) {
         break;
     }
 
+    /* ── SELECTION (Shift+Arrow) ────────────────────────────────────── */
+    case KEY_SHIFT_LEFT:
+        editor_start_selection(ed);
+        if (ed->cursor_col > 0) {
+            ed->cursor_col--;
+        } else if (ed->cursor_row > 0) {
+            ed->cursor_row--;
+            size_t tlen;
+            char *t = gb_get_text(ed->buffer, &tlen);
+            if (t) {
+                ed->cursor_col = get_line_length(t, tlen, ed->cursor_row);
+                free(t);
+            }
+        }
+        editor_sync_cursor(ed);
+        break;
+
+    case KEY_SHIFT_RIGHT: {
+        editor_start_selection(ed);
+        size_t tlen;
+        char *t = gb_get_text(ed->buffer, &tlen);
+        if (t) {
+            int line_len = get_line_length(t, tlen, ed->cursor_row);
+            if (ed->cursor_col < line_len) {
+                ed->cursor_col++;
+            } else if (ed->cursor_row < ed->total_lines - 1) {
+                ed->cursor_row++;
+                ed->cursor_col = 0;
+            }
+            free(t);
+        }
+        editor_sync_cursor(ed);
+        break;
+    }
+
+    case KEY_SHIFT_UP:
+        editor_start_selection(ed);
+        if (ed->cursor_row > 0) {
+            ed->cursor_row--;
+        }
+        editor_sync_cursor(ed);
+        break;
+
+    case KEY_SHIFT_DOWN:
+        editor_start_selection(ed);
+        if (ed->cursor_row < ed->total_lines - 1) {
+            ed->cursor_row++;
+        }
+        editor_sync_cursor(ed);
+        break;
+
     /* ── DELETION ───────────────────────────────────────────────────── */
     case KEY_BACKSPACE: {
+        editor_clear_selection(ed);
         if (ed->cursor_row == 0 && ed->cursor_col == 0) break;
 
         editor_sync_cursor(ed);
@@ -707,6 +950,7 @@ void editor_process_key(Editor *ed, int key) {
     }
 
     case KEY_DELETE: {
+        editor_clear_selection(ed);
         editor_sync_cursor(ed);
         size_t sz = gb_size(ed->buffer);
         size_t offset = editor_get_cursor_offset(ed);
@@ -739,6 +983,7 @@ void editor_process_key(Editor *ed, int key) {
     /* ── INSERTION ──────────────────────────────────────────────────── */
     case '\r':   /* Enter — insert newline */
     case '\n': {
+        editor_clear_selection(ed);
         editor_sync_cursor(ed);
         size_t offset = editor_get_cursor_offset(ed);
 
@@ -753,6 +998,7 @@ void editor_process_key(Editor *ed, int key) {
     }
 
     case '\t': { /* Tab — insert spaces */
+        editor_clear_selection(ed);
         editor_sync_cursor(ed);
         int spaces = EDITOR_TAB_STOP - (ed->cursor_col % EDITOR_TAB_STOP);
         size_t offset = editor_get_cursor_offset(ed);
@@ -775,6 +1021,7 @@ void editor_process_key(Editor *ed, int key) {
     default: {
         /* Printable character insert */
         if (key >= 32 && key <= 126) {
+            editor_clear_selection(ed);
             editor_sync_cursor(ed);
             size_t offset = editor_get_cursor_offset(ed);
 
@@ -819,6 +1066,18 @@ Editor *editor_create(const char *filename, const char *initial_content) {
         free(ed);
         return NULL;
     }
+
+    /* Create clipboard for cut/copy/paste */
+    ed->clipboard = sb_create();
+    if (!ed->clipboard) {
+        gb_destroy(ed->buffer);
+        stack_destroy(ed->undo_stack, NULL);
+        stack_destroy(ed->redo_stack, NULL);
+        free(ed);
+        return NULL;
+    }
+    ed->sel_anchor_row = -1;
+    ed->sel_anchor_col = 0;
 
     /* Load initial content into the buffer */
     if (initial_content && *initial_content) {
@@ -902,6 +1161,7 @@ void editor_destroy(Editor *ed) {
     if (ed->buffer)     gb_destroy(ed->buffer);
     if (ed->undo_stack) stack_destroy(ed->undo_stack, action_free);
     if (ed->redo_stack) stack_destroy(ed->redo_stack, action_free);
+    if (ed->clipboard)  sb_destroy(ed->clipboard);
     if (ed->filename)   free(ed->filename);
     if (ed->status_msg) free(ed->status_msg);
     free(ed);
