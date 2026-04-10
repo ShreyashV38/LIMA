@@ -548,7 +548,7 @@ int main(void) {
   /* 2. Welcome banner */
   printf("\n");
   printf("  +------------------------------------------+\n");
-  printf("  |   LIMA — Lightweight In-Memory Archive   |\n");
+  printf("  |   LIMA -Lightweight In-Memory Archive   |\n");
   printf("  |   Virtual File System Shell v1.0         |\n");
   printf("  |   Type 'help' for a list of commands.    |\n");
   printf("  +------------------------------------------+\n");
