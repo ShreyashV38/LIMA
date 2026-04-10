@@ -384,7 +384,7 @@ static int cmd_clear(void) {
 /* ---- help -------------------------------------------------------------- */
 static int cmd_help(void) {
   printf("\n");
-  printf("  LIMA Virtual File System — Command Reference\n");
+  printf("  LIMA Virtual File System - Command Reference\n");
   printf("  =============================================\n\n");
   printf("  Navigation:\n");
   printf("    ls                  List contents of current directory\n");
