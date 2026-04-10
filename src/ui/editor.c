@@ -611,7 +611,7 @@ static void editor_render(Editor *ed) {
     /* ── Draw message bar ───────────────────────────────────────────── */
     ab_append(&ab, "\x1b[K", 3);  /* Clear line */
     const char *help_default =
-        " ESC=Quit | Ctrl+Z/Y=Undo/Redo | Shift+Arrow=Select | Ctrl+C/X/V=Copy/Cut/Paste";
+        " ESC=Quit | Ctrl+B=Select | Alt+C/X/V=Copy/Cut/Paste | Ctrl+Z/Y=Undo/Redo";
     const char *msg = (ed->status_msg && ed->status_msg[0])
                           ? ed->status_msg : help_default;
     int msg_len = (int)strlen(msg);
@@ -661,8 +661,19 @@ void editor_process_key(Editor *ed, int key) {
         editor_redo(ed);
         break;
 
+    /* ── SELECTION MODE ─────────────────────────────────────────────── */
+    case KEY_CTRL_B:
+        if (editor_has_selection(ed)) {
+            editor_clear_selection(ed);
+            editor_set_status_msg(ed, "Selection cleared");
+        } else {
+            editor_start_selection(ed);
+            editor_set_status_msg(ed, "Mark set. Move cursor points to select.");
+        }
+        break;
+
     /* ── CLIPBOARD: Copy / Cut / Paste ──────────────────────────────── */
-    case KEY_CTRL_C: {
+    case KEY_ALT_C: {
         size_t sel_start, sel_end;
         if (!editor_get_selection_range(ed, &sel_start, &sel_end)) {
             editor_set_status_msg(ed, "Nothing selected");
@@ -678,7 +689,7 @@ void editor_process_key(Editor *ed, int key) {
         break;
     }
 
-    case KEY_CTRL_X: {
+    case KEY_ALT_X: {
         size_t sel_start, sel_end;
         if (!editor_get_selection_range(ed, &sel_start, &sel_end)) {
             editor_set_status_msg(ed, "Nothing selected");
@@ -713,7 +724,7 @@ void editor_process_key(Editor *ed, int key) {
         break;
     }
 
-    case KEY_CTRL_V: {
+    case KEY_ALT_V: {
         size_t paste_len;
         const char *paste_text = sb_get_text(ed->clipboard, &paste_len);
         if (!paste_text) {
@@ -765,7 +776,6 @@ void editor_process_key(Editor *ed, int key) {
 
     /* ── NAVIGATION ─────────────────────────────────────────────────── */
     case KEY_ARROW_LEFT:
-        editor_clear_selection(ed);
         if (ed->cursor_col > 0) {
             ed->cursor_col--;
         } else if (ed->cursor_row > 0) {
@@ -782,7 +792,6 @@ void editor_process_key(Editor *ed, int key) {
         break;
 
     case KEY_ARROW_RIGHT: {
-        editor_clear_selection(ed);
         size_t tlen;
         char *t = gb_get_text(ed->buffer, &tlen);
         if (t) {
@@ -801,7 +810,6 @@ void editor_process_key(Editor *ed, int key) {
     }
 
     case KEY_ARROW_UP:
-        editor_clear_selection(ed);
         if (ed->cursor_row > 0) {
             ed->cursor_row--;
         }
@@ -809,7 +817,6 @@ void editor_process_key(Editor *ed, int key) {
         break;
 
     case KEY_ARROW_DOWN:
-        editor_clear_selection(ed);
         if (ed->cursor_row < ed->total_lines - 1) {
             ed->cursor_row++;
         }
@@ -817,13 +824,11 @@ void editor_process_key(Editor *ed, int key) {
         break;
 
     case KEY_HOME:
-        editor_clear_selection(ed);
         ed->cursor_col = 0;
         editor_sync_cursor(ed);
         break;
 
     case KEY_END: {
-        editor_clear_selection(ed);
         size_t tlen;
         char *t = gb_get_text(ed->buffer, &tlen);
         if (t) {
@@ -835,7 +840,6 @@ void editor_process_key(Editor *ed, int key) {
     }
 
     case KEY_PAGE_UP: {
-        editor_clear_selection(ed);
         int jump = ed->screen_rows;
         ed->cursor_row -= jump;
         if (ed->cursor_row < 0) ed->cursor_row = 0;
@@ -844,7 +848,6 @@ void editor_process_key(Editor *ed, int key) {
     }
 
     case KEY_PAGE_DOWN: {
-        editor_clear_selection(ed);
         int jump = ed->screen_rows;
         ed->cursor_row += jump;
         if (ed->cursor_row >= ed->total_lines) {
