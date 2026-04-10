@@ -6,8 +6,7 @@
  * file hierarchy. All user commands are routed through a dispatch table
  * to the underlying VFS, clipboard, persistence, and editor modules.
  */
-// gcc -Wall -Wextra -g -I./include src/main.c src/core/*.c
-// src/data_structures/*.c src/ui/*.c src/vfs/*.c -o lima.exe
+// gcc -Wall -Wextra -g -I./include src/main.c src/core/*.c src/data_structures/*.c src/ui/*.c src/vfs/*.c -o lima
 
 #include <ctype.h>
 #include <stdio.h>
