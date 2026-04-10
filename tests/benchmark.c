@@ -177,13 +177,16 @@ static void run_benchmarks(int iterations) {
     vfs_cd(vfs, "/");
     vfs_touch(vfs, "test_text.txt");
     GapBuffer *gb = vfs_open_file(vfs, "test_text.txt");
-    gb_insert(gb, "Hello, World!", 13);
+    
+    // Initial line
+    gb_insert(gb, "Hello, World!\n", 14);
+    
     start = clock();
     for (int i = 0; i < iterations; i++) {
-        size_t len;
-        char *text = gb_get_text(gb, &len);
-        sb_store(sb, text, len);
-        free(text);
+        // Mimic 'yyp' by only storing a single line in the clipboard buffer 
+        // rather than grabbing the exponentially growing whole file.
+        char line_to_yank[] = "Hello, World!\n";
+        sb_store(sb, line_to_yank, 14);
         
         size_t slen;
         const char *stext = sb_get_text(sb, &slen); // "Paste"
