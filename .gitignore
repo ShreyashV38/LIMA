@@ -7,7 +7,7 @@
 *.dylib
 *.a
 build/
-
+*.txt
 # Editor / Configuration
 .vscode/
 .env
