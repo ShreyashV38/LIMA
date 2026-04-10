@@ -2,6 +2,7 @@
 #include "../../include/ui/terminal.h"
 #include "../../include/data_structures/gap_buffer.h"
 #include "../../include/data_structures/stack.h"
+#include "../../include/data_structures/select_buffer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,6 +131,11 @@ struct Editor {
     /* Undo / Redo stacks (PPT Slide 6) */
     Stack     *undo_stack;      /* stack of EditorAction* for undo           */
     Stack     *redo_stack;      /* stack of EditorAction* for redo           */
+
+    /* Clipboard / Selection */
+    SelectBuffer *clipboard;    /* select buffer for cut/copy/paste          */
+    int        sel_anchor_row;  /* selection anchor row (-1 = no selection)  */
+    int        sel_anchor_col;  /* selection anchor col                      */
 
     char      *status_msg;      /* transient message for the message bar     */
 };
